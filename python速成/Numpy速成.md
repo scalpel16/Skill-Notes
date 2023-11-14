@@ -249,3 +249,181 @@ array([[  2,  13],
 ...
 ```
 
+### 形状操纵
+
+以下三个命令都返回一个修改后的数组，但不会更改原始数组：
+
+- `a.ravel()`
+- `a.reshape()`
+- `a.T`
+
+```python
+>>> a.ravel()  # returns the array, flattened
+array([ 2.,  8.,  0.,  6.,  4.,  5.,  1.,  1.,  8.,  9.,  3.,  6.])
+>>> a.reshape(6,2)  # returns the array with a modified shape
+array([[ 2.,  8.],
+       [ 0.,  6.],
+       [ 4.,  5.],
+       [ 1.,  1.],
+       [ 8.,  9.],
+       [ 3.,  6.]])
+>>> a.T  # returns the array, transposed
+array([[ 2.,  4.,  8.],
+       [ 8.,  5.,  9.],
+       [ 0.,  1.,  3.],
+       [ 6.,  1.,  6.]])
+>>> a.T.shape
+(4, 3)
+>>> a.shape
+(3, 4)
+```
+
+而该 [`ndarray.resize`](https://numpy.org/devdocs/reference/generated/numpy.ndarray.resize.html#numpy.ndarray.resize)方法会修改数组本身：
+
+```python
+>>> a
+array([[ 2.,  8.,  0.,  6.],
+       [ 4.,  5.,  1.,  1.],
+       [ 8.,  9.,  3.,  6.]])
+>>> a.resize((2,6))
+>>> a
+array([[ 2.,  8.,  0.,  6.,  4.,  5.],
+       [ 1.,  1.,  8.,  9.,  3.,  6.]])
+```
+
+### 堆叠数组
+
+- `np.vstack()`：vertical
+- `np.hstack()`：horizontal
+
+```python
+>>> a = np.floor(10*np.random.random((2,2)))
+>>> a
+array([[ 8.,  8.],
+       [ 0.,  0.]])
+>>> b = np.floor(10*np.random.random((2,2)))
+>>> b
+array([[ 1.,  8.],
+       [ 0.,  4.]])
+>>> np.vstack((a,b))
+array([[ 8.,  8.],
+       [ 0.,  0.],
+       [ 1.,  8.],
+       [ 0.,  4.]])
+>>> np.hstack((a,b))
+array([[ 8.,  8.,  1.,  8.],
+       [ 0.,  0.,  0.,  4.]])
+```
+
+在复杂的情况下，[`r_`](https://numpy.org/devdocs/reference/generated/numpy.r_.html#numpy.r_)和c [`c_`](https://numpy.org/devdocs/reference/generated/numpy.c_.html#numpy.c_)于通过沿一个轴堆叠数字来创建数组很有用。它们允许使用范围操作符(“：”)。
+
+```python
+>>> np.r_[1:4,0,4]
+array([1, 2, 3, 0, 4])
+```
+
+### 数组拆分
+
+使用[`hsplit`open in new window](https://numpy.org/devdocs/reference/generated/numpy.hsplit.html#numpy.hsplit)，可以沿数组的水平轴拆分数组，方法是指定要返回的形状相等的数组的数量，或者指定应该在其之后进行分割的列：
+
+```python
+>>> a = np.floor(10*np.random.random((2,12)))
+>>> a
+array([[ 9.,  5.,  6.,  3.,  6.,  8.,  0.,  7.,  9.,  7.,  2.,  7.],
+       [ 1.,  4.,  9.,  2.,  2.,  1.,  0.,  6.,  2.,  2.,  4.,  0.]])
+>>> np.hsplit(a,3)   # Split a into 3
+[array([[ 9.,  5.,  6.,  3.],
+       [ 1.,  4.,  9.,  2.]]), array([[ 6.,  8.,  0.,  7.],
+       [ 2.,  1.,  0.,  6.]]), array([[ 9.,  7.,  2.,  7.],
+       [ 2.,  2.,  4.,  0.]])]
+>>> np.hsplit(a,(3,4))   # 在第三列和第四列后切割
+[array([[ 9.,  5.,  6.],
+       [ 1.,  4.,  9.]]), array([[ 3.],
+       [ 2.]]), array([[ 6.,  8.,  0.,  7.,  9.,  7.,  2.,  7.],
+       [ 2.,  1.,  0.,  6.,  2.,  2.,  4.,  0.]])]
+```
+
+[`vsplit`](https://numpy.org/devdocs/reference/generated/numpy.vsplit.html#numpy.vsplit)沿垂直轴分割，并[`array_split`](https://numpy.org/devdocs/reference/generated/numpy.array_split.html#numpy.array_split)允许指定要分割的轴。
+
+### 拷贝和视图
+
+#### 完全不复制
+
+简单分配不会复制数组对象或其数据。
+
+```python
+>>> a = np.arange(12)
+>>> b = a            # no new object is created
+>>> b is a           # a and b are two names for the same ndarray object
+True
+>>> b.shape = 3,4    # changes the shape of a
+>>> a.shape
+(3, 4)
+```
+
+#### 视图或深拷贝
+
+不同的数组对象可以共享相同的数据。该`view`方法创建一个查看相同数据的新数组对象。
+
+1. **节省内存：** `view` 方法创建的新数组与原始数组共享数据，而不复制整个数组的内容。这意味着在某些情况下，你可以创建一个不同形状或数据类型的数组，而不需要额外的内存开销。
+2. **更改形状：** 通过 `view`，你可以改变数组的形状，而不影响原始数组的形状。这是通过修改新数组的 `shape` 属性实现的。
+3. **更改数据：** 如果你通过 `view` 修改新数组的元素，原始数组的数据也会相应地改变。这是因为它们共享相同的数据。
+
+```python
+>>> c = a.view()
+>>> c is a
+False
+>>> c.base is a                        # c is a view of the data owned by a
+True
+>>> c.flags.owndata
+False
+>>>
+>>> c.shape = 2,6                      # a's shape doesn't change
+>>> a.shape
+(3, 4)
+>>> c[0,4] = 1234                      # a's data changes
+>>> a
+array([[   0,    1,    2,    3],
+       [1234,    5,    6,    7],
+       [   8,    9,   10,   11]])
+```
+
+切片数组会返回一个视图：
+
+```python
+s = a[:, 1:3]   # 对 a 进行切片，获取一个视图 s，该视图包含 a 的所有行和列索引为 1 到 2 的列
+s[:] = 10       # 将 s 中的所有元素设置为 10，由于 s 是 a 的视图，因此 a 的相应部分也被修改
+a
+# 输出:
+# array([[   0,   10,   10,    3],
+#        [1234,   10,   10,    7],
+#        [   8,   10,   10,   11]])
+
+```
+
+### 深拷贝
+
+该`copy`方法生成数组及其数据的完整副本。
+
+```python
+>>> d = a.copy()                          # a new array object with new data is created
+>>> d is a
+False
+>>> d.base is a                           # d doesn't share anything with a
+False
+>>> d[0,0] = 9999
+>>> a
+array([[   0,   10,   10,    3],
+       [1234,   10,   10,    7],
+       [   8,   10,   10,   11]])
+```
+
+有时，如果不再需要原始数组，则应在切片后调用 `copy`。例如，假设a是一个巨大的中间结果，最终结果b只包含a的一小部分，那么在用切片构造b时应该做一个深拷贝：
+
+```python
+>>> a = np.arange(int(1e8))
+>>> b = a[:100].copy()
+>>> del a  # the memory of ``a`` can be released.
+```
+
+如果改为使用 `b = a[:100]`，则 `a` 由 `b` 引用，并且即使执行 `del a` 也会在内存中持久存在。
